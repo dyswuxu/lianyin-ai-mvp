@@ -15,18 +15,57 @@ const analysisSteps = [
 export default function Analyzing() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(3);
+  const [analyzing, setAnalyzing] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // 模拟分析进度
-    const timer1 = setTimeout(() => setCurrentStep(4), 2000);
-    const timer2 = setTimeout(() => setCurrentStep(5), 4000);
-    const timer3 = setTimeout(() => router.push('/report'), 6000);
+    const runAnalysis = async () => {
+      // 从localStorage获取表单数据
+      const savedForm = localStorage.getItem('assessmentForm');
+      if (!savedForm) {
+        setError('未找到企业信息，请重新填写');
+        setAnalyzing(false);
+        return;
+      }
 
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
+      const formData = JSON.parse(savedForm);
+
+      try {
+        // 步骤4：AI分析中
+        setCurrentStep(4);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // 调用AI分析接口
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.error || 'AI分析失败');
+        }
+
+        // 步骤5：生成报告
+        setCurrentStep(5);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        // 保存AI分析结果
+        localStorage.setItem('aiResult', JSON.stringify(result.data));
+        
+        // 跳转到报告页
+        router.push('/report');
+
+      } catch (err) {
+        console.error('Analysis error:', err);
+        setError(err.message || '分析失败，请稍后重试');
+        setAnalyzing(false);
+      }
     };
+
+    runAnalysis();
   }, [router]);
 
   return (
@@ -77,78 +116,97 @@ export default function Analyzing() {
 
       {/* Main Content */}
       <div className="max-w-3xl mx-auto px-6 py-16">
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            AI融资顾问正在为您分析
-          </h1>
-          <p className="text-gray-500">
-            正在从多个维度分析您的企业融资能力
-          </p>
-        </div>
-
-        {/* AI Animation */}
-        <div className="bg-gradient-to-br from-blue-50 to-white rounded-3xl p-12 mb-10 relative overflow-hidden">
-          {/* Background circles */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-64 h-64 border border-blue-200 rounded-full animate-ping opacity-20"></div>
-            <div className="absolute w-48 h-48 border border-blue-300 rounded-full animate-pulse opacity-30"></div>
-            <div className="absolute w-32 h-32 border border-blue-400 rounded-full animate-spin-slow opacity-40"></div>
-          </div>
-
-          {/* Robot Icon */}
-          <div className="relative flex justify-center mb-8">
-            <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl flex items-center justify-center shadow-xl shadow-blue-500/30">
-              <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        {error ? (
+          <div className="text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">分析失败</h2>
+            <p className="text-gray-500 mb-8">{error}</p>
+            <Link href="/assessment">
+              <button className="bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 transition-all">
+                重新填写
+              </button>
+            </Link>
           </div>
+        ) : (
+          <>
+            <div className="text-center mb-12">
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                AI融资顾问正在为您分析
+              </h1>
+              <p className="text-gray-500">
+                正在从多个维度分析您的企业融资能力
+              </p>
+            </div>
 
-          {/* Analysis Steps */}
-          <div className="space-y-4 relative">
-            {analysisSteps.map((step) => (
-              <div
-                key={step.id}
-                className={`bg-white rounded-xl p-4 flex items-center gap-4 transition-all duration-500 ${
-                  step.status === 'done' ? 'border-2 border-green-200' :
-                  step.status === 'active' ? 'border-2 border-blue-300 shadow-lg shadow-blue-100' :
-                  'border border-gray-200 opacity-60'
-                }`}
-              >
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  step.status === 'done' ? 'bg-green-500' :
-                  step.status === 'active' ? 'bg-blue-500' :
-                  'bg-gray-200'
-                }`}>
-                  {step.status === 'done' ? (
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : step.status === 'active' ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className={`font-medium ${step.status === 'done' ? 'text-green-700' : step.status === 'active' ? 'text-blue-700' : 'text-gray-500'}`}>
-                    {step.title}
-                    {step.status === 'active' && <span className="ml-2 text-sm text-blue-500">分析中...</span>}
-                  </div>
-                  <div className="text-sm text-gray-500">{step.desc}</div>
+            {/* AI Animation */}
+            <div className="bg-gradient-to-br from-blue-50 to-white rounded-3xl p-12 mb-10 relative overflow-hidden">
+              {/* Background circles */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-64 h-64 border border-blue-200 rounded-full animate-ping opacity-20"></div>
+                <div className="absolute w-48 h-48 border border-blue-300 rounded-full animate-pulse opacity-30"></div>
+                <div className="absolute w-32 h-32 border border-blue-400 rounded-full animate-spin-slow opacity-40"></div>
+              </div>
+
+              {/* Robot Icon */}
+              <div className="relative flex justify-center mb-8">
+                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl flex items-center justify-center shadow-xl shadow-blue-500/30">
+                  <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Tip */}
-        <div className="flex items-center justify-center gap-2 text-blue-600 bg-blue-50 rounded-xl py-4">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span className="text-sm">AI分析过程仅需30-60秒，请稍候...</span>
-        </div>
+              {/* Analysis Steps */}
+              <div className="space-y-4 relative">
+                {analysisSteps.map((step) => (
+                  <div
+                    key={step.id}
+                    className={`bg-white rounded-xl p-4 flex items-center gap-4 transition-all duration-500 ${
+                      step.status === 'done' ? 'border-2 border-green-200' :
+                      step.status === 'active' ? 'border-2 border-blue-300 shadow-lg shadow-blue-100' :
+                      'border border-gray-200 opacity-60'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      step.status === 'done' ? 'bg-green-500' :
+                      step.status === 'active' ? 'bg-blue-500' :
+                      'bg-gray-200'
+                    }`}>
+                      {step.status === 'done' ? (
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : step.status === 'active' ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className={`font-medium ${step.status === 'done' ? 'text-green-700' : step.status === 'active' ? 'text-blue-700' : 'text-gray-500'}`}>
+                        {step.title}
+                        {step.status === 'active' && <span className="ml-2 text-sm text-blue-500">分析中...</span>}
+                      </div>
+                      <div className="text-sm text-gray-500">{step.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Tip */}
+            <div className="flex items-center justify-center gap-2 text-blue-600 bg-blue-50 rounded-xl py-4">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm">AI分析过程仅需30-60秒，请稍候...</span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Footer */}

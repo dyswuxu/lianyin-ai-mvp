@@ -1,25 +1,66 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function Report() {
-  const [formData] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('assessmentForm');
-      return saved ? JSON.parse(saved) : {
-        industry: '餐饮',
-        city: '上海',
-        companyName: '美味餐饮管理有限公司',
-        years: '5-10年',
-        revenue: '500-1000万',
-        loanAmount: '100-300万',
-      };
-    }
-    return {};
-  });
+  const [formData, setFormData] = useState({});
+  const [aiResult, setAiResult] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const score = 82;
+  useEffect(() => {
+    const savedForm = localStorage.getItem('assessmentForm');
+    const savedResult = localStorage.getItem('aiResult');
+    
+    if (savedForm) {
+      setFormData(JSON.parse(savedForm));
+    }
+    
+    if (savedResult) {
+      try {
+        setAiResult(JSON.parse(savedResult));
+      } catch (e) {
+        console.error('Failed to parse AI result:', e);
+      }
+    }
+    setLoading(false);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500">加载中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!aiResult) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">未找到分析结果</h2>
+          <p className="text-gray-500 mb-8">请先完成企业融资测评</p>
+          <Link href="/assessment">
+            <button className="bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 transition-all">
+              重新测评
+            </button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const score = aiResult.score || 0;
+  const advantages = aiResult.advantages || [];
+  const risks = aiResult.risks || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -92,27 +133,32 @@ export default function Report() {
                   </div>
                 </div>
                 <div className="flex justify-center gap-1 mb-4">
-                  {[1,2,3,4].map(i => (
-                    <svg key={i} className="w-6 h-6 text-orange-400 fill-current" viewBox="0 0 24 24">
+                  {[1,2,3,4,5].map(i => (
+                    <svg key={i} className={`w-6 h-6 ${i <= Math.round(score / 20) ? 'text-orange-400' : 'text-gray-300'} fill-current`} viewBox="0 0 24 24">
                       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                     </svg>
                   ))}
-                  <svg className="w-6 h-6 text-gray-300 fill-current" viewBox="0 0 24 24">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                  </svg>
                 </div>
                 <span className="inline-block bg-blue-100 text-blue-600 px-4 py-1.5 rounded-full text-sm font-medium mb-6">
-                  融资能力良好
+                  {score >= 80 ? '融资能力优秀' : score >= 60 ? '融资能力良好' : score >= 40 ? '融资能力一般' : '融资能力较弱'}
                 </span>
               </div>
 
               <div className="bg-blue-50 rounded-xl p-4">
                 <div className="text-gray-600 text-sm mb-2">预计可融资额度</div>
-                <div className="text-3xl font-bold text-blue-600 mb-2">100 - 300万元</div>
+                <div className="text-3xl font-bold text-blue-600 mb-2">{aiResult.loanAmount || '100-300万元'}</div>
                 <div className="flex items-center justify-between text-sm text-gray-500">
-                  <span>适合期限：6个月-3年</span>
-                  <span>更新时间：2024-05-18</span>
+                  <span>适合期限：{aiResult.loanTerm || '6个月-3年'}</span>
+                  <span>更新时间：{new Date().toLocaleDateString('zh-CN')}</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Profile */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">企业融资画像</h3>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-gray-700">{aiResult.profile || '成长型经营企业，经营稳定，有融资需求'}</p>
               </div>
             </div>
 
@@ -122,40 +168,17 @@ export default function Report() {
                 <h3 className="text-lg font-bold text-gray-900">企业优势分析</h3>
                 <span className="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm font-medium">表现良好</span>
               </div>
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <div className="space-y-3">
+                {advantages.length > 0 ? advantages.map((adv, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-green-50 rounded-xl">
+                    <svg className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                     </svg>
+                    <span className="text-gray-700">{adv}</span>
                   </div>
-                  <div>
-                    <div className="font-medium text-gray-900">经营稳定</div>
-                    <div className="text-sm text-gray-500">企业成立5-10年，经营状况稳定</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900">收入良好</div>
-                    <div className="text-sm text-gray-500">年营业额500-1000万，盈利能力较强</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900">纳税正常</div>
-                    <div className="text-sm text-gray-500">有规范的纳税记录，税务状况良好</div>
-                  </div>
-                </div>
+                )) : (
+                  <div className="text-gray-500 text-center py-4">暂无优势数据</div>
+                )}
               </div>
             </div>
           </div>
@@ -174,21 +197,21 @@ export default function Report() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                   <span className="text-gray-500 w-20">企业名称</span>
-                  <span className="text-gray-900 font-medium">{formData.companyName || '美味餐饮管理有限公司'}</span>
+                  <span className="text-gray-900 font-medium">{formData.companyName || '-'}</span>
                 </div>
                 <div className="flex items-center gap-3 py-2 border-b border-gray-100">
                   <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z" />
                   </svg>
                   <span className="text-gray-500 w-20">所属行业</span>
-                  <span className="text-gray-900 font-medium">{formData.industry || '餐饮'}</span>
+                  <span className="text-gray-900 font-medium">{formData.industry || '-'}</span>
                 </div>
                 <div className="flex items-center gap-3 py-2 border-b border-gray-100">
                   <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span className="text-gray-500 w-20">成立时间</span>
-                  <span className="text-gray-900 font-medium">{formData.years || '5-10年'}</span>
+                  <span className="text-gray-900 font-medium">{formData.years || '-'}</span>
                 </div>
                 <div className="flex items-center gap-3 py-2 border-b border-gray-100">
                   <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -196,14 +219,14 @@ export default function Report() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                   <span className="text-gray-500 w-20">所在城市</span>
-                  <span className="text-gray-900 font-medium">{formData.city || '上海'}</span>
+                  <span className="text-gray-900 font-medium">{formData.city || '-'}</span>
                 </div>
                 <div className="flex items-center gap-3 py-2">
                   <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className="text-gray-500 w-20">企业类型</span>
-                  <span className="text-gray-900 font-medium">有限责任公司</span>
+                  <span className="text-gray-500 w-20">年营业额</span>
+                  <span className="text-gray-900 font-medium">{formData.revenue || '-'}</span>
                 </div>
               </div>
             </div>
@@ -215,76 +238,33 @@ export default function Report() {
                 <span className="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-sm font-medium">需要关注</span>
               </div>
               <div className="space-y-3">
-                <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-xl">
-                  <svg className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <div>
-                    <div className="font-medium text-gray-900">纳税金额偏低</div>
-                    <div className="text-sm text-gray-500">相比营业额，纳税金额偏低，建议增加纳税记录</div>
+                {risks.length > 0 ? risks.map((risk, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-orange-50 rounded-xl">
+                    <svg className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span className="text-gray-700">{risk}</span>
                   </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-xl">
-                  <svg className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <div>
-                    <div className="font-medium text-gray-900">财务资料不完善</div>
-                    <div className="text-sm text-gray-500">建议完善财务报表和银行流水记录</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-xl">
-                  <svg className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <div>
-                    <div className="font-medium text-gray-900">抵押资产不足</div>
-                    <div className="text-sm text-gray-500">无抵押物可能影响大额贷款审批</div>
-                  </div>
-                </div>
+                )) : (
+                  <div className="text-gray-500 text-center py-4">暂无风险提示</div>
+                )}
               </div>
             </div>
 
-            {/* Comparison */}
+            {/* Suggestions */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">关键指标对比（行业参考）</h3>
-              <div className="overflow-hidden rounded-xl border border-gray-200">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">指标</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-600">您的企业</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-600">行业平均</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-600">对比</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    <tr>
-                      <td className="py-3 px-4 text-sm text-gray-600">企业成立年限</td>
-                      <td className="py-3 px-4 text-sm text-center font-medium text-gray-900">5-10年</td>
-                      <td className="py-3 px-4 text-sm text-center text-gray-500">3-5年</td>
-                      <td className="py-3 px-4 text-center"><span className="text-green-600 text-sm font-medium">优于</span></td>
-                    </tr>
-                    <tr>
-                      <td className="py-3 px-4 text-sm text-gray-600">年营业收入</td>
-                      <td className="py-3 px-4 text-sm text-center font-medium text-gray-900">500-1000万</td>
-                      <td className="py-3 px-4 text-sm text-center text-gray-500">300-500万</td>
-                      <td className="py-3 px-4 text-center"><span className="text-green-600 text-sm font-medium">优于</span></td>
-                    </tr>
-                    <tr>
-                      <td className="py-3 px-4 text-sm text-gray-600">纳税金额</td>
-                      <td className="py-3 px-4 text-sm text-center font-medium text-gray-900">20-30万</td>
-                      <td className="py-3 px-4 text-sm text-center text-gray-500">30-50万</td>
-                      <td className="py-3 px-4 text-center"><span className="text-orange-500 text-sm font-medium">一般</span></td>
-                    </tr>
-                    <tr>
-                      <td className="py-3 px-4 text-sm text-gray-600">员工人数</td>
-                      <td className="py-3 px-4 text-sm text-center font-medium text-gray-900">50-100人</td>
-                      <td className="py-3 px-4 text-sm text-center text-gray-500">20-50人</td>
-                      <td className="py-3 px-4 text-center"><span className="text-green-600 text-sm font-medium">优于</span></td>
-                    </tr>
-                  </tbody>
-                </table>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">提升建议</h3>
+              <div className="space-y-3">
+                {(aiResult.suggestions || []).length > 0 ? aiResult.suggestions.map((sug, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-600 text-sm font-medium">{i + 1}</span>
+                    </div>
+                    <span className="text-gray-700">{sug}</span>
+                  </div>
+                )) : (
+                  <div className="text-gray-500 text-center py-4">暂无建议</div>
+                )}
               </div>
             </div>
           </div>
@@ -293,42 +273,36 @@ export default function Report() {
         {/* Recommended Products */}
         <div className="mt-10">
           <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-8">
-            <h3 className="text-xl font-bold text-gray-900 mb-6">下一步推荐</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-6">推荐融资方案</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-white rounded-xl p-5 hover:shadow-md transition-shadow cursor-pointer">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+              {(aiResult.products || []).slice(0, 3).map((product, i) => (
+                <div key={i} className="bg-white rounded-xl p-5 hover:shadow-md transition-shadow cursor-pointer">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center text-sm font-bold text-gray-600">
+                      {product.bank?.slice(0, 2) || '银'}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-900">{product.bank || '银行'}</div>
+                      <div className="text-sm text-gray-500">{product.name || '贷款产品'}</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-gray-500">额度：</span>
+                      <span className="font-medium text-gray-900">{product.amount || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">利率：</span>
+                      <span className="font-medium text-gray-900">{product.rate || '-'}</span>
+                    </div>
+                  </div>
+                  <button className="w-full mt-3 text-blue-600 text-sm font-medium text-center">查看详情 &gt;</button>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-1">经营性贷款</h4>
-                <p className="text-sm text-gray-500 mb-3">适合稳定经营的企业，额度高</p>
-                <button className="text-blue-600 text-sm font-medium">查看方案 &gt;</button>
-              </div>
-              <div className="bg-white rounded-xl p-5 hover:shadow-md transition-shadow cursor-pointer">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
-                  </svg>
-                </div>
-                <h4 className="font-semibold text-gray-900 mb-1">税贷产品</h4>
-                <p className="text-sm text-gray-500 mb-3">基于纳税记录，审批快</p>
-                <button className="text-blue-600 text-sm font-medium">查看方案 &gt;</button>
-              </div>
-              <div className="bg-white rounded-xl p-5 hover:shadow-md transition-shadow cursor-pointer">
-                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
-                  </svg>
-                </div>
-                <h4 className="font-semibold text-gray-900 mb-1">抵押贷款</h4>
-                <p className="text-sm text-gray-500 mb-3">有房产可申请更高额度</p>
-                <button className="text-blue-600 text-sm font-medium">查看方案 &gt;</button>
-              </div>
+              ))}
             </div>
             <Link href="/plans">
               <button className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/30">
-                想了解更适合的融资方案？
+                查看更多融资方案
               </button>
             </Link>
           </div>
